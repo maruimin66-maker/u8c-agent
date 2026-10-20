@@ -14,7 +14,7 @@
 ## 安装
 
 ```bash
-npx -y skills add <owner>/u8c-agent -g --all
+npx -y skills add maruimin66-maker/u8c-agent -g --all
 ```
 
 安装后 skill 位于 `skills/u8c-agent/`，引擎在 `skills/u8c-agent/agent/`（Java 源码 + 自带 ECJ 编译器，免装 JDK）。
