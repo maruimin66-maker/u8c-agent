@@ -5,6 +5,8 @@ classes/
 # 本地档案（含公司私有值，不入库）
 profile.local.json
 *.local.json
+# 本机 agent 便利配置（项目级 skill 挂载等，不进公开仓库）
+/.devin/
 # 系统/临时
 .DS_Store
 null
