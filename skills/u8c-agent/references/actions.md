@@ -88,14 +88,17 @@
 | `billType` | 必填，单据类型码（D3/B7 等，用于平台动作与编号） |
 | `voClass` | 默认 `nc.vo.ep.dj.DJZBVO`；其他聚合 VO 传全限定类名 |
 | `corp` | 公司 pk；缺省 `parent.pk_corp` → `profile.corp` → 登录公司 |
-| `pkMap` | `{"parent":"vouchid","child":"djvbid","fk":"vouchid"}`；arap 内置默认，其他 VO 类需显式给 |
+| `pkMap` | `{"parent":"vouchid","child":"fb_oid","fk":"vouchid"}`；arap 内置默认，其他 VO 类需显式给 |
 | `parent`/`children` | 字段 JSON；profile `bill.<billType>.*Defaults` 与 `defaults` 作缺省合并（显式 > spec.defaults > profile） |
 | `saveAction` | 默认 `SAVE` |
 | `dryRun` | `true` 时只构造 VO + `checkWorkitemOnSave` 校验，不落库 |
 
 行为：
-- 自动补 `vouchid`/`djvbid` OID、`dr=0`、`status=NEW`、子表外键回指。
+- 自动补 `vouchid`/`fb_oid` OID、`dr=0`、`status=NEW`、子表外键回指。
+- `djbh` 不传时服务端按该单据类型的编号规则自动取号（已实测）。
+- **落库主键以 `saveRet[0]` 为准**：服务端可能重编号覆盖客户端预生成的 vouchid（实测 U8C arap 如此）——回查与后续 billAction 都应使用 saveRet 里的 pk。
 - 返回 `vo`（类型转换后回显——**核对字段是否真的写进 VO**，写错字段名会静默丢）；`saveRet`；arap 时附 `bills` 回查与 `verified`。
+- SAVE→DELETE 回归已在真实 U8C 验证：SAVE 返回 `djzt=1`、DELETE 后 `dr=1`。
 
 ### billAction / payAction
 

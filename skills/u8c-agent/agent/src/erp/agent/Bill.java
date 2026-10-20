@@ -199,10 +199,13 @@ public final class Bill {
     /**
      * {"action":"billSave","billType":"D3","voClass":"nc.vo.ep.dj.DJZBVO"(默认可省),
      *  "corp":"公司pk(缺省: parent.pk_corp > profile.corp > 登录公司)",
-     *  "pkMap":{"parent":"vouchid","child":"djvbid","fk":"vouchid"}(arap 默认内置),
+     *  "pkMap":{"parent":"vouchid","child":"fb_oid","fk":"vouchid"}(arap 默认内置),
      *  "parent":{...},"children":[{...}],
      *  "defaults":{"parent":{...},"item":{...}},
      *  "saveAction":"SAVE"(默认), "dryRun":true(只建VO+checkWorkitemOnSave不落库)}
+     * 实测行为（U8C arap SAVE）：不传 djbh 时服务端按编号规则自动取号；
+     * 落库主键以 saveRet[0] 为准（可能覆盖客户端预生成 vouchid）；
+     * status/dr 未传时自动置 NEW/0；verified 字段为回查结果。
      */
     public static JsonObject billSave(Session s, JsonObject spec) throws Exception {
         String billType = spec.has("billType") ? spec.get("billType").getAsString() : null;
@@ -305,14 +308,22 @@ public final class Bill {
         Object ret = Flow.process(s, new Invoker(s), saveAction, billType, vo, out);
         out.add("saveRet", JsonCodec.toJson(ret));
 
-        // arap 回查验证
-        if (ARAP_VO.equals(voClass) && parent.has("vouchid")) {
-            String vid = parent.get("vouchid").getAsString();
-            JsonArray chk = Docs.tableQuery(s, "arap_djzb",
-                    new String[]{"vouchid", "djbh", "djlxbm", "djdl", "spzt", "djzt", "dr"},
-                    "vouchid='" + vid + "'");
-            out.add("bills", chk);
-            out.addProperty("verified", chk.size() > 0);
+        // arap 回查验证：服务端实际落库主键以 saveRet 返回值为准
+        // （客户端预生成的 vouchid 可能被服务端重编号覆盖，实测如此）
+        if (ARAP_VO.equals(voClass)) {
+            String vid = extractSavedPk(ret);
+            if (vid == null && parent.has("vouchid"))
+                vid = parent.get("vouchid").getAsString();
+            if (vid != null) {
+                JsonArray chk = Docs.tableQuery(s, "arap_djzb",
+                        new String[]{"vouchid", "djbh", "djlxbm", "djdl", "spzt", "djzt", "dr"},
+                        "vouchid='" + vid + "'");
+                out.add("bills", chk);
+                out.addProperty("verified", chk.size() > 0);
+            } else {
+                out.addProperty("verified", false);
+                note.addProperty("verify", "saveRet 中未识别出落库主键，请按 saveRet.djbh 自行回查");
+            }
         }
         return out;
     }
@@ -367,11 +378,31 @@ public final class Bill {
 
     // ---------- 内部 ----------
 
+    /** processAction 返回值结构：数组/List 首元素为落库头 pk（String），第二元素为回写 VO */
+    private static String extractSavedPk(Object ret) {
+        try {
+            Object first = null;
+            if (ret instanceof Object[]) {
+                Object[] a = (Object[]) ret;
+                if (a.length > 0) first = a[0];
+            } else if (ret instanceof java.util.List) {
+                java.util.List<?> l = (java.util.List<?>) ret;
+                if (!l.isEmpty()) first = l.get(0);
+            } else if (ret instanceof String) {
+                first = ret;
+            }
+            if (first instanceof String && ((String) first).length() >= 10) return (String) first;
+        } catch (Exception ignore) {
+        }
+        return null;
+    }
+
     private static JsonObject defaultPkMap(String voClass) {
         if (ARAP_VO.equals(voClass)) {
+            // DJZBVO：表头主键 vouchid；表体行主键 fb_oid（arap_djfb 行 pk），外键 vouchid 回指表头
             JsonObject m = new JsonObject();
             m.addProperty("parent", "vouchid");
-            m.addProperty("child", "djvbid");
+            m.addProperty("child", "fb_oid");
             m.addProperty("fk", "vouchid");
             return m;
         }

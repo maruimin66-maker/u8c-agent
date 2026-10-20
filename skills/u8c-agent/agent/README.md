@@ -54,7 +54,7 @@ echo '{"action":"describe","service":"nc.itf.uap.sf.ILogin3Service"}' | ./u8-age
 
 | action | 说明 |
 |---|---|
-| `billSave` | JSON→聚合 VO→平台 SAVE：`{"billType":"D3","parent":{...},"children":[...]}`；`dryRun:true` 只校验不落库 |
+| `billSave` | JSON→聚合 VO→平台 SAVE：`{"billType":"D3","parent":{...},"children":[...]}`；`dryRun:true` 只校验不落库；arap 内置 pkMap `vouchid`/`fb_oid`；落库主键以 `saveRet[0]` 为准（服务端可重编号），`djbh` 缺省自动取号 |
 | `billAction` | 对既有 arap 单据执行动作：`{"op":"QUERY/EDIT/APPROVE/AUDIT/DELETE/UPDATE/INSPECT","vouchid"|"djbh"}`，billtype 自动解析 |
 | `payAction` | `billAction` 旧名别名 |
 | `createPurchaseOrder` | 创建采购订单（自由态），`{"head":{...},"items":[...]}` |
