@@ -1,0 +1,11 @@
+# 构建产物
+classes/
+*.class
+.sources.list
+# 本地档案（含公司私有值，不入库）
+profile.local.json
+*.local.json
+# 系统/临时
+.DS_Store
+null
+*.log

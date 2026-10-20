@@ -1,0 +1,28 @@
+{
+  "corp": "<公司pk，如 1002；写入链路默认公司>",
+  "payDoc": {
+    "payerAccountCode": "<我方付款账户 bd_bankaccbas.accountcode>",
+    "zjldwMeasName": "<资金计量单位名 bd_measdoc.measname>",
+    "headDefaults": {
+      "zyx6": "<付款类型自定义项值（对照先例）>"
+    }
+  },
+  "order": {
+    "purchaseOrgPk": "<采购组织 pk（订单头 cpurorganization）>",
+    "arriveStoreOrg": {
+      "<corpCode>": "<该公司收货库存组织 pk（pk_arrvstoorg）>"
+    },
+    "bizTypeNameField": "vdef8",
+    "propagateHeadFields": ["vdef4"]
+  },
+  "contract": {
+    "bizTypeField": "def8",
+    "sourceBillType": "Z2"
+  },
+  "bill": {
+    "<djlxbm>": {
+      "headDefaults": {},
+      "itemDefaults": {}
+    }
+  }
+}

@@ -1,0 +1,44 @@
+#!/bin/bash
+# u8-agent 启动器：stdin 一行 JSON 请求 -> stdout 一行 JSON 结果
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+JAVA="${ERP_AGENT_JAVA:-$HOME/UClient/share/java1.8.0_202-x64/bin/java}"
+CODE_DIR="${ERP_AGENT_CODE_DIR:-}"
+if [[ -z "$CODE_DIR" ]]; then
+  # 取 jar 数量最多的 CODE 缓存（主应用缓存，排除 iUFO 等子应用）
+  CODE_DIR="$(for d in "$HOME"/UClient/apps/*/u8c_client_home/NCCACHE/*/CODE; do \
+    [[ -d "$d/lib" ]] && echo "$(find "$d/lib" -name '*.jar' | wc -l | tr -d ' ') $d"; \
+  done 2>/dev/null | sort -rn | head -1 | awk '{print $2}')"
+fi
+[[ -d "$CODE_DIR/lib" ]] || { echo '{"ok":false,"error":"UClient cache not found (login UClient once, or set ERP_AGENT_CODE_DIR)"}'; exit 1; }
+[[ -d "$DIR/classes" ]] || { echo '{"ok":false,"error":"not compiled, run ./compile.sh first"}'; exit 1; }
+
+# 可选：从本地 env 文件加载 ERP_AGENT_*（默认 ~/.config/secrets.env，可用 ERP_AGENT_ENV_FILE 覆盖）
+ENV_FILE="${ERP_AGENT_ENV_FILE:-$HOME/.config/secrets.env}"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+
+CP="$DIR/classes:$CODE_DIR"
+for j in "$DIR"/tools/gson-*.jar; do CP="$CP:$j"; done
+for j in "$CODE_DIR"/lib/*.jar; do
+  # cglib 会让 NC 定制版 XStream 误注册 CGLIBEnhancedConverter（ClassNotFoundException: org.objectweb.asm.CodeVisitor）
+  case "$(basename "$j")" in cglib-*.jar) continue;; esac
+  CP="$CP:$j"
+done
+
+# 业务节点按需同步的 jar 可能落在其他应用缓存：按文件名去重补充
+for d in "$HOME"/UClient/apps/*/u8c_client_home/NCCACHE/*/CODE/lib; do
+  [[ "$d" == "$CODE_DIR/lib" ]] && continue
+  [[ -d "$d" ]] || continue
+  for j in "$d"/*.jar; do
+    base="$(basename "$j")"
+    case "$base" in cglib-*.jar) continue;; esac
+    [[ -f "$CODE_DIR/lib/$base" ]] && continue
+    case ":$CP:" in *":$j:"*) continue;; esac
+    CP="$CP:$j"
+  done
+done
+
+exec "$JAVA" -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai -cp "$CP" erp.agent.Main "$@"
